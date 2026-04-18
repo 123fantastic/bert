@@ -79,6 +79,81 @@ python run_classifier.py \
   --output_dir=./output/mrpc
 ```
 
+## 古诗朝代分类脚本
+
+仓库中新增了 `run_poetry_classifier.py`，用于读取 `古诗.csv` 并根据诗词内容预测朝代。
+
+这个脚本默认使用以下字段：
+
+- `content`：主文本内容
+- `dynasty`：分类标签
+- `title`：可选，会拼接进输入文本
+- `author`：可选，会拼接进输入文本
+
+基础训练命令示例：
+
+```bash
+python run_poetry_classifier.py \
+  --data_file ./古诗.csv \
+  --vocab_file ./model/vocab.txt \
+  --bert_config_file ./model/bert_config.json \
+  --init_checkpoint ./model/bert_model.ckpt \
+  --output_dir ./output/poetry \
+  --do_train=true \
+  --do_eval=true \
+  --max_seq_length=128 \
+  --train_batch_size=8 \
+  --eval_batch_size=8 \
+  --learning_rate=2e-5 \
+  --num_train_epochs=5
+```
+
+## 小样本数据使用建议
+
+`古诗.csv` 这类数据集如果样本较少、类别又不均衡，直接按通用 BERT 参数训练，结果往往会不稳定。为了更适合小样本情况，建议优先采用下面这组思路：
+
+- 使用中文预训练模型，例如 `BERT-Base, Chinese`
+- 将 `max_seq_length` 设为 `64` 或 `128`，不要一开始设太大
+- 将 `train_batch_size` 设为 `4` 或 `8`
+- 将 `num_train_epochs` 设为 `8` 到 `15`
+- 将 `learning_rate` 控制在 `2e-5` 到 `3e-5`
+- 保留 `title` 和 `author`，小样本时它们往往能提供额外信息
+- 如果某些朝代样本只有 1 条，评估结果会波动很大，应更关注预测效果而不是单次验证集分数
+
+更稳妥的小样本训练命令可以从这一版开始：
+
+```bash
+python run_poetry_classifier.py \
+  --data_file ./古诗.csv \
+  --vocab_file ./model/vocab.txt \
+  --bert_config_file ./model/bert_config.json \
+  --init_checkpoint ./model/bert_model.ckpt \
+  --output_dir ./output/poetry_small_sample \
+  --do_train=true \
+  --do_eval=true \
+  --max_seq_length=64 \
+  --train_batch_size=4 \
+  --eval_batch_size=4 \
+  --learning_rate=2e-5 \
+  --num_train_epochs=10 \
+  --eval_ratio=0.2
+```
+
+如果你只是想先验证流程能不能跑通，也可以先只训练不评估，等确认模型和数据路径都正常以后，再补评估或预测步骤。
+
+单条预测示例：
+
+```bash
+python run_poetry_classifier.py \
+  --data_file ./古诗.csv \
+  --vocab_file ./model/vocab.txt \
+  --bert_config_file ./model/bert_config.json \
+  --init_checkpoint ./output/poetry_small_sample/model.ckpt-10 \
+  --output_dir ./output/poetry_small_sample \
+  --do_predict=true \
+  --predict_text "舷灯渐灭，沙动荒荒月。极目天低无去鹘，何处中原一发？"
+```
+
 ## 问答任务示例
 
 `run_squad.py` 用于 SQuAD 数据集上的训练和预测，适合阅读 BERT 在机器阅读理解任务上的处理流程。
